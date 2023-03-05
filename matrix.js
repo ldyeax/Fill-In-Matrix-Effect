@@ -140,7 +140,7 @@ class Matrix {
 	constructor(options) {
 		this.#fullscreen = options.fullscreen;
 		this.#canvas = options.canvas;
-		this.#ctx = canvas.getContext('2d');
+		this.#ctx = this.#canvas.getContext('2d');
 		if (this.#fullscreen) {
 			window.addEventListener('resize', this.reset.bind(this));
 		}
