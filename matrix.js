@@ -45,6 +45,10 @@ class Matrix {
 	 * @type {boolean}
 	 */
 	#fullscreen = false;
+	/**
+	 * @type {boolean}
+	 */
+	#invert = true;
 	// #endregion
 
 	reset() {
@@ -73,7 +77,7 @@ class Matrix {
 		canvas.width = this.#width;
 		canvas.height = this.#height;
 		const ctx = canvas.getContext('2d');
-		
+
 		// draw the image, as big as possible, correct aspect ratio
 		const imageAspectRatio = image.width / image.height;
 		const canvasAspectRatio = canvas.width / canvas.height;
@@ -94,7 +98,14 @@ class Matrix {
 			xStart = 0;
 			yStart = 0;
 		}
+
+		ctx.save();
+		if (this.#invert) {
+			ctx.translate(canvas.width, 0);
+			ctx.scale(-1, 1);
+		}
 		ctx.drawImage(image, xStart, yStart, renderableWidth, renderableHeight);
+		ctx.restore();
 
 		const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 		for (let i = 0; i < imageData.data.length; i += 4) {
@@ -105,6 +116,7 @@ class Matrix {
 				imageData.data[i + 3] = 0;
 			}
 		}
+
 		this.#imageData = imageData;
 	}
 
@@ -169,6 +181,12 @@ class Matrix {
 	constructor(options) {
 		this.#fullscreen = options.fullscreen;
 		this.#canvas = options.canvas;
+		if (typeof options.invert != 'undefined') {
+			this.#invert = options.invert;
+		}
+		if (this.#invert) {
+			this.#canvas.style.transform = "scaleX(-1)";
+		}
 		this.#ctx = this.#canvas.getContext('2d');
 		if (this.#fullscreen) {
 			window.addEventListener('resize', this.reset.bind(this));
