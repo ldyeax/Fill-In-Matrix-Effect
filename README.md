@@ -13,4 +13,4 @@ new Matrix({
 });
 ```
 
-Annie Vorchine credit [@jasminDreasond](/jasminDreasond): https://derpibooru.org/search?q=oc%3Aannie%20vorechine
+Annie Vorchine credit [@jasminDreasond](https://github.com/jasminDreasond): https://derpibooru.org/search?q=oc%3Aannie%20vorechine
