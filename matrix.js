@@ -73,7 +73,29 @@ class Matrix {
 		canvas.width = this.#width;
 		canvas.height = this.#height;
 		const ctx = canvas.getContext('2d');
-		ctx.drawImage(this.#image, 0, 0, canvas.width, canvas.height);
+		
+		// draw the image, as big as possible, correct aspect ratio
+		const imageAspectRatio = image.width / image.height;
+		const canvasAspectRatio = canvas.width / canvas.height;
+		let renderableHeight, renderableWidth, xStart, yStart;
+		if (imageAspectRatio < canvasAspectRatio) {
+			renderableHeight = canvas.height;
+			renderableWidth = image.width * (renderableHeight / image.height);
+			xStart = (canvas.width - renderableWidth) / 2;
+			yStart = 0;
+		} else if (imageAspectRatio > canvasAspectRatio) {
+			renderableWidth = canvas.width;
+			renderableHeight = image.height * (renderableWidth / image.width);
+			xStart = 0;
+			yStart = (canvas.height - renderableHeight) / 2;
+		} else {
+			renderableHeight = canvas.height;
+			renderableWidth = canvas.width;
+			xStart = 0;
+			yStart = 0;
+		}
+		ctx.drawImage(image, xStart, yStart, renderableWidth, renderableHeight);
+
 		const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 		for (let i = 0; i < imageData.data.length; i += 4) {
 			imageData.data[i] = 0;
@@ -100,6 +122,8 @@ class Matrix {
 		};
 	}
 
+	#count = 0;
+
 	draw() {
 		let ctx = this.#ctx;
 
@@ -109,7 +133,12 @@ class Matrix {
 		ctx.fillStyle = '#0f0';
 		ctx.font = '15pt monospace';
 
+		this.#count++;
+
 		this.#ypos.forEach((y, ind) => {
+			if (ind % 2 == 0 && this.#count % 2 == 0) {
+				return;
+			}
 			const text = matrixCharacters[Math.floor(Math.random() * matrixCharacters.length)];
 			const x = ind * 20;
 			ctx.fillText(text, x, y);
