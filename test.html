@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Matrix Fill Test</title>
+<style>
+body {
+    margin: 0;
+    height: 100vh;
+    width: 100vw;
+    background-color: black;
+}
+html, body{
+    padding: 0 0 0 0;
+    margin: 0 0 0 0;
+}
+</style>
+
+<body>
+<canvas id=canvas width=800 height=600></canvas>
+<script type=module>
+import Matrix from './matrix.js';
+window.matrix = new Matrix({
+    canvas: document.getElementById('canvas'),
+    imageUrl: "./annie_green.png",
+    fullscreen: true
+});
+</script>
