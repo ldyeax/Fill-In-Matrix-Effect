@@ -1,5 +1,7 @@
 // https://scifi.stackexchange.com/a/182823
-const matrixCharacters = "日ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾈｽﾀﾇﾍ012345789Z:・.\"=*+-<>¦｜╌ ｸ";
+const MATRIX_CHARACTERS = "日ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾈｽﾀﾇﾍ012345789Z:・.\"=*+-<>¦｜╌ ｸ";
+const CHAR_HEIGHT = 20;
+const CHAR_WIDTH = 18;
 
 class Matrix {
 	// #region canvas
@@ -21,47 +23,73 @@ class Matrix {
 	#imageData = null;
 	// #endregion
 
-	// #region update variables
+	// #region variables
 	/**
 	 * @type {number}
 	 */
-	#cols = 0;
-	/**
-	 * @param {number[]}
-	 */
-	#ypos = [];
-	// #endregion
-
-	// #region matrix properties
+	#nCols = 0;
 	/**
 	 * @type {number}
 	 */
-	#width = 800;
+	#nRows = 0;
+	/**
+	 * @type {number[]} Which row to draw the character of each column next
+	 */
+	#columnPositions = [];
 	/**
 	 * @type {number}
 	 */
-	#height = 600;
+	#canvasWidth = 800;
 	/**
-	 * @type {boolean}
+	 * @type {number}
+	 */
+	#canvasHeight = 600;
+	/**
+	 * @type {boolean} Automatically resize canvas to fill the window
 	 */
 	#fullscreen = false;
 	/**
-	 * @type {boolean}
+	 * @type {boolean} Draw text flipped (background image retaisn orientation in any case)
 	 */
 	#invert = true;
+	/**
+	 * @type {number[]} Only draws on columns divisible by these numbers in the beginning, to fill the screen slower - becomes null later and all columns are allowed
+	 */
+	#allowedModulos = [];
+	/**
+	 * @type {number} Time until the next allowed modulo will be added
+	 */
+	#moduloTimerMS = 0;
+	/**
+	 * @type {number} Time between adding a new allowed modulo
+	 */
+	#moduloMS = 1000;
+	/**
+	 * @type {boolean} Draw FPS in document title
+	 */
+	#fpsTitle = false;
+	#lastDrawTimeMS = -1;
+	/**
+	 * @type {number} Minimum FPS encountered so far
+	 */
+	#minFPS = Infinity;
 	// #endregion
 
 	reset() {
 		if (this.#fullscreen) {
-			this.#width = this.#canvas.width = window.innerWidth;
-			this.#height = this.#canvas.height = window.innerHeight;
+			this.#canvasWidth = this.#canvas.width = window.innerWidth;
+			this.#canvasHeight = this.#canvas.height = window.innerHeight;
 		} else {
 			this.#canvas.width = this.#canvas.width;
 		}
-		this.#cols = Math.floor(this.#width / 20) + 1;
-		this.#ypos = Array(this.#cols).fill(0);
-		this.#width = this.#canvas.width;
-		this.#height = this.#canvas.height;
+
+		this.#nCols = Math.floor(this.#canvasWidth / CHAR_WIDTH) + 1;
+		this.#nRows = Math.floor(this.#canvasHeight / CHAR_HEIGHT) + 1;
+		this.#columnPositions = Array(this.#nCols).fill(0).map(() => Math.floor(Math.random() * this.#nRows));
+		this.#canvasWidth = this.#canvas.width;
+		this.#canvasHeight = this.#canvas.height;
+		this.#allowedModulos.push(parseInt(this.#nCols / 6));
+		this.#moduloTimerMS = this.#moduloMS;
 		this.processImage();
 	}
 
@@ -74,8 +102,8 @@ class Matrix {
 			return;
 		}
 		const canvas = document.createElement('canvas');
-		canvas.width = this.#width;
-		canvas.height = this.#height;
+		canvas.width = this.#canvasWidth;
+		canvas.height = this.#canvasHeight;
 		const ctx = canvas.getContext('2d');
 
 		// draw the image, as big as possible, correct aspect ratio
@@ -134,35 +162,72 @@ class Matrix {
 		};
 	}
 
-	#count = 0;
-
 	draw() {
+		if (this.#lastDrawTimeMS < 0) {
+			this.#lastDrawTimeMS = performance.now();
+		} else {
+			let now = performance.now();
+			let elapsed = now - this.#lastDrawTimeMS;
+			let fps = 1000 / elapsed;
+			if (fps < this.#minFPS) {
+				this.#minFPS = fps;
+			}
+			this.#lastDrawTimeMS = now;
+			if (this.#fpsTitle) {
+				document.querySelector("title").innerText = `FPS: ${fps.toFixed(2)} Min: ${this.#minFPS.toFixed(2)}`;
+			}
+
+			this.#moduloTimerMS -= elapsed;
+		}
+		
+		if (this.#allowedModulos != null) {
+			if (this.#moduloTimerMS <= 0) {
+				let last = this.#allowedModulos.at(-1);
+				if (last > 1) {
+					this.#allowedModulos.push(last - 1);
+					this.#moduloTimerMS = this.#moduloMS;
+				} else {
+					this.#allowedModulos = null;
+				}
+			}
+		}
+
 		let ctx = this.#ctx;
 
-		ctx.fillStyle = '#0001';
-		ctx.fillRect(0, 0, this.#width, this.#height);
+		ctx.fillStyle = `rgba(0, 0, 0, 0.063)`;
+		ctx.fillRect(0, 0, this.#canvasWidth, this.#canvasHeight);
 
 		ctx.fillStyle = '#0f0';
 		ctx.font = '15pt monospace';
 
-		this.#count++;
+		for (let i = 0; i < this.#columnPositions.length; i++) {
+			if (this.#allowedModulos != null) {
+				let fail = true;
+				for (let allowedModulo of this.#allowedModulos) {
+					if (i % allowedModulo == 0) {
+						fail = false;
+						break;
+					}
+				}
+				if (fail) {
+					continue;
+				}
+			}
 
-		this.#ypos.forEach((y, ind) => {
-			if (ind % 2 == 0 && this.#count % 2 == 0) {
-				return;
-			}
-			const text = matrixCharacters[Math.floor(Math.random() * matrixCharacters.length)];
-			const x = ind * 20;
-			ctx.fillText(text, x, y);
-			if (y > 100 + Math.random() * 10000) {
-				this.#ypos[ind] = 0;
+			let cnvX = i * CHAR_WIDTH;
+			let gridY = this.#columnPositions[i];
+			let cnvY = gridY * CHAR_HEIGHT;
+			let text = MATRIX_CHARACTERS[Math.floor(Math.random() * MATRIX_CHARACTERS.length)];
+			ctx.fillText(text, cnvX, cnvY);
+			if (gridY > 10 + Math.random() * this.#nRows * 10) {
+				this.#columnPositions[i] = 0;
 			} else {
-				this.#ypos[ind] = y + 20;
+				this.#columnPositions[i]++;
 			}
-		});
+		}
 
 		if (this.#imageData) {
-			let matrixImageData = ctx.getImageData(0, 0, this.#width, this.#height);
+			let matrixImageData = ctx.getImageData(0, 0, this.#canvasWidth, this.#canvasHeight);
 			for (let i = 0; i < matrixImageData.data.length; i += 4) {
 				let mGreen = matrixImageData.data[i + 1];
 				let iGreen = this.#imageData.data[i + 1];
@@ -175,15 +240,18 @@ class Matrix {
 	}
 
 	/**
-	 * @param {HTMLCanvasElement} canvas 
-	 * @param {string} imageUrl 
+	 * Options:  
+	 * - canvas: Canvas element (required)
+	 * - imageUrl: Background image URL (optional)
+	 * - fullscreen: Fill canvas to window dimensions automatically (default: false)
+	 * - invert: Invert text horizontally (default: true)
+	 * - interval: Interval in milliseconds between each draw (default: 50)
+	 * - fpsTitle: Update document title with FPS (default: false)
 	 */
 	constructor(options) {
 		this.#fullscreen = options.fullscreen;
 		this.#canvas = options.canvas;
-		if (typeof options.invert != 'undefined') {
-			this.#invert = options.invert;
-		}
+		this.#invert = options.invert ?? true;
 		if (this.#invert) {
 			this.#canvas.style.transform = "scaleX(-1)";
 		}
@@ -191,9 +259,13 @@ class Matrix {
 		if (this.#fullscreen) {
 			window.addEventListener('resize', this.reset.bind(this));
 		}
-		this.loadImage(options.imageUrl);
+		if (options.imageUrl) {
+			this.loadImage(options.imageUrl);
+		}
 		this.reset();
-		setInterval(this.draw.bind(this), 50);
+		this.#fpsTitle = options.fpsTitle ?? false;
+		let interval = options.interval ?? 50;
+		setInterval(this.draw.bind(this), interval);
 	}
 }
 
